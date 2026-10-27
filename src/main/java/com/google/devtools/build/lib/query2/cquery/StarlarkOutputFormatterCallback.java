@@ -17,6 +17,7 @@ package com.google.devtools.build.lib.query2.cquery;
 import static com.google.devtools.build.lib.cmdline.LabelConstants.COMMAND_LINE_OPTION_PREFIX;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.devtools.build.lib.analysis.ConfiguredAspect;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
 import com.google.devtools.build.lib.analysis.config.BuildOptions;
 import com.google.devtools.build.lib.analysis.config.FragmentOptions;
@@ -29,6 +30,7 @@ import com.google.devtools.build.lib.query2.engine.QueryEnvironment.TargetAccess
 import com.google.devtools.build.lib.query2.engine.QueryException;
 import com.google.devtools.build.lib.server.FailureDetails.ConfigurableQuery;
 import com.google.devtools.build.lib.server.FailureDetails.Query;
+import com.google.devtools.build.lib.skyframe.AspectKeyCreator.AspectKey;
 import com.google.devtools.build.lib.skyframe.SkyframeExecutor;
 import com.google.devtools.common.options.OptionDefinition;
 import java.io.IOException;
@@ -119,6 +121,23 @@ public class StarlarkOutputFormatterCallback extends CqueryThreadsafeCallback {
         return Starlark.NONE;
       }
       return ret;
+    }
+
+    @StarlarkMethod(
+        name = "aspects",
+        documented = false,
+        parameters = {
+          @Param(name = "target"),
+        })
+    public Dict<String, Object> aspects(CqueryNode target) {
+      // Keyed by the aspect's description (e.g. "//foo:defs.bzl%my_aspect"), each value is the
+      // providers dict of that aspect applied to the target, in the same format as providers().
+      Dict.Builder<String, Object> ret = Dict.builder();
+      for (Map.Entry<AspectKey, ConfiguredAspect> entry :
+          accessor.getTopLevelAspectsWithKeys(target)) {
+        ret.put(entry.getKey().getAspectName(), entry.getValue().getProvidersDictForQuery());
+      }
+      return ret.buildImmutable();
     }
   }
 
